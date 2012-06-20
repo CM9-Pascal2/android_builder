@@ -1,30 +1,29 @@
-#!/bin/sh
+#!/bin/bash
 
 #######################################################################################
 #
 #	Auto image script for rockchip and android 
 #
 #######################################################################################
-
 		txtrst='\e[0m'  # Color off
 		txtred='\e[0;31m' # Red
 		txtgrn='\e[0;32m' # Green
 		txtylw='\e[0;33m' # Yellow
 		txtblu='\e[0;34m' # Blue
 		THREADS=`cat /proc/cpuinfo | grep processor | wc -l`
+	
 
-########################################################################################
-# we should change this var for different config
-ANDROID_ROOT=$ANDROID_BUILD_TOP
-PRODUCT_DIR=$OUT
+COMMAND="$1"
+ADDITIONAL="$2"
+TOP=${PWD}
 
 #######################################################################################
-ANDROID_BUILD_TOP=~/android/system
+ANDROID_ROOT=~/android/system
 OUT=$ANDROID_ROOT/out/target/product/pascal2
-
+PRODUCT_DIR=$ANDROID_ROOT/out/target/product/pascal2
 #######################################################################################
 
-# donnot change this var 
+# do not change this var 
 PRODUCT_IMAGES=$PRODUCT_DIR/images
 PRODUCT_ROOT=$PRODUCT_DIR/root
 PRODUCT_SYSTEM=$PRODUCT_DIR/system
@@ -44,64 +43,21 @@ RECOVERYIMG_SIZE=32000
 CACHEIMG_SIZE=$SYSTEMIMG_SIZE
 
 #######################################################################################	
-	echo "****************  start building android ****************"
-
-# Starting Timer
-START=$(date +%s)
 
 
- #Setting up Build Environment
-echo -e "${txtgrn}Setting up Build Environment...${txtrst}"
 
-. build/envsetup.sh
-lunch cm_pascal2-userdebug
-
-END=$(date +%s)
-ELAPSED=$((END - START))
-E_MIN=$((ELAPSED / 60))
-E_SEC=$((ELAPSED - E_MIN * 60))
-printf "${txtgrn}Elapsed: "
-[ $E_MIN != 0 ] && printf "%d min(s) " $E_MIN
-printf "%d sec(s)\n ${txtrst}" $E_SEC
-
-
-#######################################################################################
-echo "de build is completed? (y/n)"
-    read -n1 option
-    echo -e "\r\n"
-
-case $distribution in
-    "y")
-        echo "Building"
-        mkimg_boot
-        mkimg_system
-        mkimg_recovery
-        ;;
-      "n")
-      echo -e "${txtred}No complete. Aborting."
-        echo -e "\r\n ${txtrst}"
-        exit
-        ;;
-    *)
-        echo -e "${txtred}No complete. Aborting."
-        echo -e "\r\n ${txtrst}"
-        exit
-        ;;
-    esac
-
-#######################################################################################
-mkdir -p $PRODUCT_IMAGES
 
 #######################################################################################
 mkimg_boot()
 {	
-	echo "****************  start make boot.img **************** "	
-	
+	echo "****************  start make boot.img **************** "
+	cd $OUT	
 	pushd $OUT/root/
-	find . | cpio -o -H newc | gzip -n > ../bootstrap/boot.gz
+	find . | cpio -o -H newc | gzip -n > ../boot.gz
 	popd
-
-        ./$OUT/rktools/rkcrc -k $OUT/boot.gz $OUT/boot.img
+	cd $OUT/rktools
+        ./rkcrc -k $OUT/boot.gz $OUT/boot.img
+	cd ..
 	mv $OUT/boot.img $PRODUCT_IMAGES
 	cd $ANDROID_ROOT
 	echo "make boot.img ok"
@@ -139,18 +95,85 @@ mkimg_system()
 mkimg_recovery()
 {
 	echo "****************  start make recovery.img ****************"
-
-	
-	
+	cd $OUT
 	pushd $OUT/recovery/root/
-	find . | cpio -o -H newc | gzip -n > ../bootstrap/recovery.gz
+	find . | cpio -o -H newc | gzip -n > ../../recovery.gz
 	popd
-
-        ./$OUT/rktools/rkcrc -k $OUT/recovery.gz $OUT/recovery.img
+        cd $OUT/rktools
+	./rkcrc -k $OUT/recovery.gz $OUT/recovery.img
+	cd ..
 	mv $OUT/recovery.img $PRODUCT_IMAGES
 	
 	echo "make recovery.img ok!"
 }
 
 ######################################################################################
-        
+# Starting Timer
+START=$(date +%s)
+
+# Device specific settings
+case "$COMMAND" in
+	clean)
+		make clean
+		rm -rf ./out/target/product
+		exit
+		;;
+	pascal2)
+	   	lunch=cm_pascal2-userdebug
+	    	;;
+	*)
+		echo -e "${txtred}Usage: $0 DEVICE ADDITIONAL"
+		echo -e "Example: ./builder.sh pascal2"
+		echo -e "Supported Devices: pascal2${txtrst}"
+		echo -e "Additional , build images of system,boot,..../builder.sh pascal2 img"
+		exit 2
+		;;
+esac
+
+brunch=${lunch}
+
+
+# Setting up Build Environment
+echo -e "${txtgrn}Setting up Build Environment...${txtrst}"
+. build/envsetup.sh
+lunch ${lunch}
+
+
+
+#######################################################################################
+# Start the Build
+case "$ADDITIONAL" in
+	img)
+
+		echo -e "${txtgrn}Building Android...${txtrst}"
+		brunch ${brunch}
+		echo -e "${txtgrn}Is building all?[ENTER]${txtrst}"
+		read enter
+		echo -e "${txtgrn} Create images...${txtrst}"	
+       		mkimg_boot
+		mkimg_recovery
+		#mkimg_system
+		;;
+	img_only)
+		echo -e "${txtgrn} Create images...${txtrst}"	
+       		mkimg_boot
+		mkimg_recovery
+		#mkimg_system
+		;;
+	
+	*)
+		echo -e "${txtgrn}Building Android...${txtrst}"
+		brunch ${brunch}
+		;;
+esac
+
+#######################################################################################
+
+END=$(date +%s)
+ELAPSED=$((END - START))
+E_MIN=$((ELAPSED / 60))
+E_SEC=$((ELAPSED - E_MIN * 60))
+printf "${txtgrn}Elapsed: "
+[ $E_MIN != 0 ] && printf "%d min(s) " $E_MIN
+printf "%d sec(s)\n ${txtrst}" $E_SEC
+
