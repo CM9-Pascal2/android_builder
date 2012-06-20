@@ -52,6 +52,8 @@ mkimg_boot()
 {	
 	echo "****************  start make boot.img **************** "
 	cd $OUT	
+	mkdir images
+	rm boot.img
 	pushd $OUT/root/
 	find . | cpio -o -H newc | gzip -n > ../boot.gz
 	popd
@@ -68,22 +70,19 @@ mkimg_system()
 {	
 	echo "****************  start make system.img ****************"
 	
-
-	cd $PRODUCT_IMAGES
-	mkdir system
+	cd $OUT
+	rm system.img
+	#cd $PRODUCT_IMAGES
+	#mkdir system
 
 	echo "alloc disk space..."
 	dd if=/dev/zero of=$SYSTEMIMG bs=1024 count=${SYSTEMIMG_SIZE}
 	#mke2fs -F -m 0 -i 2000 $SYSTEMIMG > /dev/null
-	mkfs.ext4 -F $SYSTEMIMG > /dev/null
-	sudo mount -o loop $SYSTEMIMG $PRODUCT_IMAGES/system/
+	/sbin/mkfs.ext3 -F $SYSTEMIMG > /dev/null
+	sudo mount -t ext3 -o loop $SYSTEMIMG $PRODUCT_IMAGES/system/
 
-	cd system
-
-	echo "copy from systemfs..."
-
-	cd ${PRODUCT_SYSTEM}
-	sudo mv -r .* $PRODUCT_IMAGES/system
+	cd $OUT
+	sudo cp -rv system images
 
 	cd ..
 	sudo umount $PRODUCT_IMAGES/system/
@@ -96,6 +95,7 @@ mkimg_recovery()
 {
 	echo "****************  start make recovery.img ****************"
 	cd $OUT
+	rm recovery.img
 	pushd $OUT/recovery/root/
 	find . | cpio -o -H newc | gzip -n > ../../recovery.gz
 	popd
@@ -144,7 +144,6 @@ lunch ${lunch}
 # Start the Build
 case "$ADDITIONAL" in
 	img)
-
 		echo -e "${txtgrn}Building Android...${txtrst}"
 		brunch ${brunch}
 		echo -e "${txtgrn}Is building all?[ENTER]${txtrst}"
@@ -152,13 +151,13 @@ case "$ADDITIONAL" in
 		echo -e "${txtgrn} Create images...${txtrst}"	
        		mkimg_boot
 		mkimg_recovery
-		#mkimg_system
+		mkimg_system
 		;;
 	img_only)
 		echo -e "${txtgrn} Create images...${txtrst}"	
        		mkimg_boot
 		mkimg_recovery
-		#mkimg_system
+		mkimg_system
 		;;
 	
 	*)
