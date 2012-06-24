@@ -72,8 +72,10 @@ mkimg_system()
 	
 	cd $OUT
 	rm system.img
-	#cd $PRODUCT_IMAGES
-	#mkdir system
+	sudo rm  $OUT/images/system -rf
+	cd $PRODUCT_IMAGES
+	
+	mkdir system
 
 	echo "alloc disk space..."
 	dd if=/dev/zero of=$SYSTEMIMG bs=1024 count=${SYSTEMIMG_SIZE}
@@ -143,6 +145,10 @@ lunch ${lunch}
 #######################################################################################
 # Start the Build
 case "$ADDITIONAL" in
+	build)
+		echo -e "${txtgrn}Building Android...${txtrst}"
+		brunch ${brunch}
+		;;
 	img)
 		echo -e "${txtgrn}Building Android...${txtrst}"
 		brunch ${brunch}
@@ -159,7 +165,10 @@ case "$ADDITIONAL" in
 		mkimg_recovery
 		mkimg_system
 		;;
-	
+	img_sys)
+		echo -e "${txtgrn} Create images...${txtrst}"	
+       		mkimg_system
+		;;
 	*)
 		echo -e "${txtgrn}Building Android...${txtrst}"
 		brunch ${brunch}
@@ -175,4 +184,3 @@ E_SEC=$((ELAPSED - E_MIN * 60))
 printf "${txtgrn}Elapsed: "
 [ $E_MIN != 0 ] && printf "%d min(s) " $E_MIN
 printf "%d sec(s)\n ${txtrst}" $E_SEC
-
