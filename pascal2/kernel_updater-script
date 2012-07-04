@@ -1,0 +1,18 @@
+ui_print(">>");
+ui_print(">> CyanogenMod Bootimage Updater");
+ui_print(">> for Rockchip 2918");
+ui_print(">>");
+
+show_progress(0.200000, 2);
+mount("ext3", "EMMC", "/dev/block/mtdblock9", "/system");
+show_progress(0.500000, 10);
+package_extract_dir("system", "/system");
+show_progress(0.300000, 0);
+assert(package_extract_file("boot.img", "/tmp/boot.img"),
+       run_program("/sbin/nandwrite","-p", "/dev/mtd/mtd3","/tmp/boot.img"),
+       delete("/tmp/boot.img"));
+assert(package_extract_file("kernel.img", "/tmp/kernel.img"),
+       run_program("/sbin/nandwrite","-p", "/dev/mtd/mtd2","/tmp/kernel.img"),
+       delete("/tmp/kernel.img"));
+unmount("/system");
+ui_print("Done.");

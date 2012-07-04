@@ -60,7 +60,7 @@ mkimg_boot()
 	cd $OUT/rktools
         ./rkcrc -k $OUT/boot.gz $OUT/boot.img
 	cd ..
-	mv $OUT/boot.img $PRODUCT_IMAGES
+	cp $OUT/boot.img $PRODUCT_IMAGES
 	cd $ANDROID_ROOT
 	echo "make boot.img ok"
 }
@@ -104,9 +104,45 @@ mkimg_recovery()
         cd $OUT/rktools
 	./rkcrc -k $OUT/recovery.gz $OUT/recovery.img
 	cd ..
-	mv $OUT/recovery.img $PRODUCT_IMAGES
+	cp $OUT/recovery.img $PRODUCT_IMAGES
 	
 	echo "make recovery.img ok!"
+}
+
+######################################################################################
+######################################################################################
+mkimg_kernel_zip()
+{
+	echo "****************  start make kernel package ****************"
+                cd out/target/product/${COMMAND}
+
+                rm -rf kernel_zip
+                rm kernel-cm-9-*
+
+                mkdir -p kernel_zip/system/lib/modules
+                mkdir -p kernel_zip/META-INF/com/google/android
+
+                echo "Copying boot.img..."
+                cp boot.img kernel_zip/
+		cp kernel.img kernel_zip/
+                echo "Copying kernel modules..."
+                cp -R system/lib/modules/* kernel_zip/system/lib/modules
+                echo "Copying update-binary..."
+                cp obj/EXECUTABLES/updater_intermediates/updater kernel_zip/META-INF/com/google/android/update-binary
+                echo "Copying updater-script..."
+                cat ${TOP}/android_builder/${COMMAND}/kernel_updater-script > kernel_zip/META-INF/com/google/android/updater-script
+                
+                echo "Zipping package..."
+                cd kernel_zip
+                zip -qr ../kernel-cm-9-$(date +%Y%m%d)-${COMMAND}.zip ./
+                cd ${TOP}/out/target/product/${COMMAND}
+
+                echo "Signing package..."
+                java -jar ${TOP}/out/host/linux-x86/framework/signapk.jar ${TOP}/build/target/product/security/testkey.x509.pem ${TOP}/build/target/product/security/testkey.pk8 kernel-cm-9-$(date +%Y%m%d)-${COMMAND}.zip kernel-cm-9-$(date +%Y%m%d)-${COMMAND}-signed.zip
+                rm kernel-cm-9-$(date +%Y%m%d)-${COMMAND}.zip
+                echo -e "${txtgrn}Package complete:${txtrst} out/target/product/${COMMAND}/kernel-cm-9-$(date +%Y%m%d)-${COMMAND}-signed.zip"
+                md5sum kernel-cm-9-$(date +%Y%m%d)-${COMMAND}-signed.zip
+                cd ${TOP}
 }
 
 ######################################################################################
@@ -148,6 +184,7 @@ case "$ADDITIONAL" in
 	build)
 		echo -e "${txtgrn}Building Android...${txtrst}"
 		brunch ${brunch}
+		mkimg_kernel_zip
 		;;
 	img)
 		echo -e "${txtgrn}Building Android...${txtrst}"
@@ -158,6 +195,11 @@ case "$ADDITIONAL" in
        		mkimg_boot
 		mkimg_recovery
 		mkimg_system
+		;;
+	kernel)
+		echo -e "${txtgrn} Create kernel zip...${txtrst}"	
+       		mkimg_boot	
+		mkimg_kernel_zip
 		;;
 	img_only)
 		echo -e "${txtgrn} Create images...${txtrst}"	
